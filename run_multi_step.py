@@ -113,11 +113,19 @@ def main(runid):
     minl = 1e5
 
     # Before starting training
-    if os.path.exists('checkpoint.pth'):
-        checkpoint = torch.load('checkpoint.pth')
+    if os.path.exists('content/drive/MyDrive/checkpoint.pth'):
+        checkpoint = torch.load('content/drive/MyDrive/checkpoint.pth')
         model.load_state_dict(checkpoint['model_state_dict'])
-        optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         start_epoch = checkpoint['epoch'] + 1
+        # Load any other relevant information
+        if args.lr_decay:
+            lr_decay_steps = [args.lr_decay_steps]
+        # Create a new scheduler with the same parameters as before
+            scheduler = optim.lr_scheduler.MultiStepLR(engine.optimizer, milestones=lr_decay_steps, gamma=args.lr_decay_rate)
+
+        # Set the scheduler's last_epoch attribute
+            scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
+            scheduler.last_epoch = checkpoint['scheduler_last_epoch']
         # Load any other relevant information
     else:
         start_epoch = 0
@@ -208,7 +216,7 @@ def main(runid):
             checkpoint = {
                 'epoch': i,
                 'model_state_dict': model.state_dict(),
-                'optimizer_state_dict': optimizer.state_dict(),
+                'scheduler_last_epoch': scheduler.last_epoch,  # Save the last epoch of the scheduler
                 # Add any other relevant information
             }
             torch.save(checkpoint, checkpoint_path)
