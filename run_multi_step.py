@@ -26,7 +26,7 @@ parser.add_argument('--device', type=str, default='cuda:0', help='device to run'
 parser.add_argument('--data', type=str, default='./data/METR-LA', help='data path')
 parser.add_argument('--buildA_true', type=str_to_bool, default=True, help='whether to construct adaptive adjacency matrix')
 parser.add_argument('--adj_data', type=str, default='./data/sensor_graph/adj_mx.pkl', help='adj data path')
-parser.add_argument('--save', type=str, default='/content/drive/MyDrive/MTGODE/save', help='model save path')
+parser.add_argument('--save', type=str, default='/content/drive/MyDrive/MTGODE/save/', help='model save path')
 parser.add_argument('--save_preds', type=str_to_bool, default=True, help='whether to save prediction results')
 parser.add_argument('--save_preds_path', type=str, default='/content/drive/MyDrive/MTGODE/results/', help='predictions save path')
 parser.add_argument('--num_nodes', type=int, default=207, help='number of nodes/variables')
