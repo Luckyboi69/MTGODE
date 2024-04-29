@@ -26,9 +26,9 @@ parser.add_argument('--device', type=str, default='cuda:0', help='device to run'
 parser.add_argument('--data', type=str, default='./data/METR-LA', help='data path')
 parser.add_argument('--buildA_true', type=str_to_bool, default=True, help='whether to construct adaptive adjacency matrix')
 parser.add_argument('--adj_data', type=str, default='./data/sensor_graph/adj_mx.pkl', help='adj data path')
-parser.add_argument('--save', type=str, default='./save/', help='model save path')
+parser.add_argument('--save', type=str, default='/content/drive/MyDrive/MTGODE/save', help='model save path')
 parser.add_argument('--save_preds', type=str_to_bool, default=True, help='whether to save prediction results')
-parser.add_argument('--save_preds_path', type=str, default='./results/', help='predictions save path')
+parser.add_argument('--save_preds_path', type=str, default='/content/drive/MyDrive/MTGODE/results/', help='predictions save path')
 parser.add_argument('--num_nodes', type=int, default=207, help='number of nodes/variables')
 parser.add_argument('--in_dim', type=int, default=2, help='inputs dimension')
 parser.add_argument('--seq_in_len', type=int, default=12, help='input sequence length')
@@ -112,7 +112,17 @@ def main(runid):
     train_time = []
     minl = 1e5
 
-    for i in range(1, args.epochs+1):
+    # Before starting training
+    if os.path.exists('checkpoint.pth'):
+        checkpoint = torch.load('checkpoint.pth')
+        model.load_state_dict(checkpoint['model_state_dict'])
+        optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        start_epoch = checkpoint['epoch'] + 1
+        # Load any other relevant information
+    else:
+        start_epoch = 0
+
+    for i in range(start_epoch, args.epochs):
         train_loss = []
         train_mape = []
         train_rmse = []
@@ -127,10 +137,10 @@ def main(runid):
             if iter % args.step_size2 == 0:
                 perm = np.random.permutation(range(args.num_nodes))
 
-            num_sub = int(args.num_nodes/args.num_split)
+            num_sub = int(args.num_nodes / args.num_split)
 
             for j in range(args.num_split):
-                if j != args.num_split-1:
+                if j != args.num_split - 1:
                     id = perm[j * num_sub:(j + 1) * num_sub]
                 else:
                     id = perm[j * num_sub:]
@@ -144,10 +154,11 @@ def main(runid):
 
             if iter % args.print_every == 0:
                 log = 'Iter: {:03d}, NFE_1: {}, NFE_2: {}, Train Loss: {:.4f}, Train MAPE: {:.4f}, Train RMSE: {:.4f}'
-                print(log.format(iter, metrics[3], metrics[4], train_loss[-1], train_mape[-1], train_rmse[-1]), flush=True)
+                print(log.format(iter, metrics[3], metrics[4], train_loss[-1], train_mape[-1], train_rmse[-1]),
+                      flush=True)
 
         t2 = time.time()
-        train_time.append(t2-t1)
+        train_time.append(t2 - t1)
 
         # validation after each epoch
         valid_loss = []
@@ -165,8 +176,8 @@ def main(runid):
 
         s2 = time.time()
         log = 'Epoch: {:03d}, Inference Time: {:.4f} secs'
-        print(log.format(i,(s2-s1)))
-        val_time.append(s2-s1)
+        print(log.format(i, (s2 - s1)))
+        val_time.append(s2 - s1)
 
         mtrain_loss = np.mean(train_loss)
         mtrain_mape = np.mean(train_mape)
@@ -178,16 +189,29 @@ def main(runid):
         his_loss.append(mvalid_loss)
 
         log = 'Epoch: {:03d}, Train Loss: {:.4f}, Train MAPE: {:.4f}, Train RMSE: {:.4f}, Valid Loss: {:.4f}, Valid MAPE: {:.4f}, Valid RMSE: {:.4f}, Training Time: {:.4f}/epoch'
-        print(log.format(i, mtrain_loss, mtrain_mape, mtrain_rmse, mvalid_loss, mvalid_mape, mvalid_rmse, (t2 - t1)), flush=True)
+        print(log.format(i, mtrain_loss, mtrain_mape, mtrain_rmse, mvalid_loss, mvalid_mape, mvalid_rmse, (t2 - t1)),
+              flush=True)
 
         # save the best model for this run over epochs
         if mvalid_loss < minl:
-            torch.save(engine.model.state_dict(), args.save + args.data.replace('data/', '') + "_exp" + str(args.expid) + "_" + str(runid) +".pth")
+            torch.save(engine.model.state_dict(),
+                       args.save + args.data.replace('data/', '') + "_exp" + str(args.expid) + "_" + str(
+                           runid) + ".pth")
             minl = mvalid_loss
 
         if args.lr_decay:
             scheduler.step()  # adjust learning rate
 
+        # Save checkpoint every 25 epochs
+        if i % 25 == 0:
+            checkpoint_path = '/content/drive/MyDrive/MTGODE/checkpoints/checkpoint_epoch{}.pth'.format(i)
+            checkpoint = {
+                'epoch': i,
+                'model_state_dict': model.state_dict(),
+                'optimizer_state_dict': optimizer.state_dict(),
+                # Add any other relevant information
+            }
+            torch.save(checkpoint, checkpoint_path)
     print("Average Training Time: {:.4f} secs/epoch".format(np.mean(train_time)))
     print("Average Inference Time: {:.4f} secs".format(np.mean(val_time)))
 
